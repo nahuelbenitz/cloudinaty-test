@@ -1,0 +1,107 @@
+﻿@page "/"
+@using CloudinaryDotNet.Actions
+
+@inject ICloudinaryService cloudinary
+
+<PageTitle>Cloudinary Test</PageTitle>
+
+<h1>Hello, Cloudinary!</h1>
+
+@if(listaImg != null)
+{
+    @foreach (var resource in listaImg)
+    {
+        <img src="@resource.SecureUrl" height="400" width="400"/>
+        <label>@resource.PublicId</label>
+        <button @onclick="() => EliminarImagen(resource.PublicId)">Eliminar imagen</button>
+        <br />
+    }
+}
+
+
+Welcome to your new app.
+
+<label>Subir imagen</label> <br/><br />
+<InputFile OnChange="HandleFileSelected" />
+
+
+<hr/>
+@if (!string.IsNullOrEmpty(imageUrl))
+{
+    <img src="@imageUrl"  alt="Imagen seleccionada">
+    <label>Nombre de la imagen</label>
+    <br />
+    <input type="text" @bind-value="Nombre" />
+    <button @onclick="SubirImagen">Subir imagen</button>
+}
+
+@if (!string.IsNullOrEmpty(urlCloudinary))
+{
+    <label>@urlCloudinary</label>
+}
+
+@code {
+    private IBrowserFile selectedFile;
+    private string imageUrl = string.Empty;
+    private string Nombre = string.Empty;
+    private string urlCloudinary = string.Empty;
+    private List<Resource>? listaImg;
+
+    protected override void OnInitialized()
+    {
+        listaImg = cloudinary.ListadoImages();
+    }
+
+    private async Task<Boolean> SubirImagen()
+    {
+        if (string.IsNullOrEmpty(Nombre))
+        {
+            return false;
+        }
+
+        var result = await cloudinary.CargarImagen(selectedFile, Nombre);
+
+        if (result == null)
+            return false;
+
+        urlCloudinary = result;
+        return true;
+    }
+
+    private void EliminarImagen(string id)
+    {
+
+        var result = cloudinary.EliminarImagen(id);
+
+        if (result == true)
+            StateHasChanged();
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        if (selectedFile != null)
+        {
+            var buffer = new List<byte>();
+
+            using (var stream = selectedFile.OpenReadStream(5120000))
+            {
+                byte[] tempBuffer = new byte[4096]; // Tamaño del bloque
+                int bytesRead;
+
+                while ((bytesRead = await stream.ReadAsync(tempBuffer, 0, tempBuffer.Length)) > 0)
+                {
+                    buffer.AddRange(tempBuffer.Take(bytesRead)); //Agrego, salteando los ya leidos
+                }
+            }
+
+            // Convertir el contenido del archivo a Base64
+            var base64String = Convert.ToBase64String(buffer.ToArray());
+
+            imageUrl = $"data:{selectedFile.ContentType};base64,{base64String}";
+            var gola = selectedFile.Name;
+        }
+    }
+
+
+}
